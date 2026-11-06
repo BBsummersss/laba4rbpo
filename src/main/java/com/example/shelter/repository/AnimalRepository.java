@@ -1,0 +1,3 @@
+package com.example.shelter.repository;
+import com.example.shelter.model.Animal; import org.springframework.stereotype.Repository; import java.util.List;
+@Repository public class AnimalRepository { private final AnimalJpaRepository dao; public AnimalRepository(AnimalJpaRepository dao){this.dao=dao;} public List<Animal> findAll(){return dao.findAll();} public Animal findById(Long id){return dao.findById(id).orElse(null);} public Animal save(Animal x){return dao.save(x);} public void deleteById(Long id){dao.deleteById(id);} public List<Animal> findByEnclosureId(Long id){return dao.findByEnclosureId(id);} }

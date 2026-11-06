@@ -1,0 +1,191 @@
+@baseUrl = http://localhost:8080
+@user = family4
+@other = family42
+
+### Получить CSRF-токен (200)
+GET {{baseUrl}}/api/auth/csrf
+
+> {% client.global.set("csrf", response.body.token); %}
+
+### Регистрация заявителя (201)
+POST {{baseUrl}}/api/auth/register
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Александр", "username": "{{user}}", "password": "StudyPass123!"}
+
+> {% client.global.set("userId", response.body.id); %}
+
+### Регистрация второго заявителя (201)
+POST {{baseUrl}}/api/auth/register
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Никита", "username": "{{other}}", "password": "StudyPass123!"}
+
+> {% client.global.set("otherId", response.body.id); %}
+
+### Создать вольер (201)
+POST {{baseUrl}}/api/enclosures
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"allowedSpecies": ["кошка"], "capacity": 1}
+
+> {% client.global.set("enclosureId", response.body.id); %}
+
+### Создать животное (201)
+POST {{baseUrl}}/api/animals
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Мурка", "species": "кошка", "age": 2}
+
+> {% client.global.set("animalId", response.body.id); %}
+
+### USER не размещает животных (403)
+POST {{baseUrl}}/api/operations/animals/{{animalId}}/place/{{enclosureId}}
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+
+### Разместить животное (200)
+POST {{baseUrl}}/api/operations/animals/{{animalId}}/place/{{enclosureId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Создать второе животное (201)
+POST {{baseUrl}}/api/animals
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Васька", "species": "кошка", "age": 1}
+
+> {% client.global.set("secondAnimalId", response.body.id); %}
+
+### Переполненный вольер (409)
+POST {{baseUrl}}/api/operations/animals/{{secondAnimalId}}/place/{{enclosureId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Подать заявку (201)
+POST {{baseUrl}}/api/adoption-applications
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"animalId": {{animalId}}}
+
+> {% client.global.set("applicationId", response.body.id); %}
+
+### Конкурирующая заявка (201)
+POST {{baseUrl}}/api/adoption-applications
+Authorization: Basic {{other}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"animalId": {{animalId}}}
+
+> {% client.global.set("otherApplicationId", response.body.id); %}
+
+### Нельзя готовить акт до одобрения (409)
+POST {{baseUrl}}/api/operations/applications/{{applicationId}}/prepare-handover
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### USER не одобряет заявки (403)
+POST {{baseUrl}}/api/operations/applications/{{applicationId}}/approve
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+
+### Одобрить заявку (200)
+POST {{baseUrl}}/api/operations/applications/{{applicationId}}/approve
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Животное зарезервировано (200)
+GET {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Конкурирующая заявка отклонена (200)
+GET {{baseUrl}}/api/adoption-applications/{{otherApplicationId}}
+Authorization: Basic {{other}} StudyPass123!
+
+### USER не готовит акты (403)
+POST {{baseUrl}}/api/operations/applications/{{applicationId}}/prepare-handover
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+
+### Подготовить акт (201)
+POST {{baseUrl}}/api/operations/applications/{{applicationId}}/prepare-handover
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+> {% client.global.set("recordId", response.body.id); %}
+
+### Нельзя отклонить заявку с активным актом (409)
+POST {{baseUrl}}/api/operations/applications/{{applicationId}}/reject
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### USER не подтверждает передачу (403)
+POST {{baseUrl}}/api/operations/handovers/{{recordId}}/confirm
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+
+### Подтвердить передачу (200)
+POST {{baseUrl}}/api/operations/handovers/{{recordId}}/confirm
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Животное передано, вольер свободен (200)
+GET {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Подтверждённый акт нельзя удалить отдельно (409)
+DELETE {{baseUrl}}/api/animal-handover-records/{{recordId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Заявка на другое животное (201)
+POST {{baseUrl}}/api/adoption-applications
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"animalId": {{secondAnimalId}}}
+
+> {% client.global.set("secondApplicationId", response.body.id); %}
+
+### Отклонить ожидающую заявку (200)
+POST {{baseUrl}}/api/operations/applications/{{secondApplicationId}}/reject
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить заявителя и связанные заявки с актом (204)
+DELETE {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить второго заявителя (204)
+DELETE {{baseUrl}}/api/users/{{otherId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить первое животное (204)
+DELETE {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить второе животное (204)
+DELETE {{baseUrl}}/api/animals/{{secondAnimalId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить вольер (204)
+DELETE {{baseUrl}}/api/enclosures/{{enclosureId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+

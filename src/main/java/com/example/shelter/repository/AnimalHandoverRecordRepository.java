@@ -1,0 +1,3 @@
+package com.example.shelter.repository;
+import com.example.shelter.model.AnimalHandoverRecord; import org.springframework.stereotype.Repository; import java.util.List;
+@Repository public class AnimalHandoverRecordRepository { private final AnimalHandoverRecordJpaRepository dao; public AnimalHandoverRecordRepository(AnimalHandoverRecordJpaRepository dao){this.dao=dao;} public List<AnimalHandoverRecord> findAll(){return dao.findAll();} public AnimalHandoverRecord findById(Long id){return dao.findById(id).orElse(null);} public AnimalHandoverRecord save(AnimalHandoverRecord x){return dao.save(x);} public void deleteById(Long id){dao.deleteById(id);} public List<AnimalHandoverRecord> findByApplicationId(Long id){return dao.findByApplicationId(id);} }

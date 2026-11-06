@@ -1,0 +1,309 @@
+@baseUrl = http://localhost:8080
+@user = student4
+@other = friend4
+
+### Без входа (401)
+GET {{baseUrl}}/api/animals
+
+### Получить CSRF-токен (200)
+GET {{baseUrl}}/api/auth/csrf
+
+> {% client.global.set("csrf", response.body.token); %}
+
+### Слабый пароль (400)
+POST {{baseUrl}}/api/auth/register
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Александр", "username": "{{user}}", "password": "123"}
+
+### Регистрация обычного пользователя (201)
+POST {{baseUrl}}/api/auth/register
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Александр", "username": "{{user}}", "password": "StudyPass123!"}
+
+> {% client.global.set("userId", response.body.id); %}
+
+### Повторная регистрация (409)
+POST {{baseUrl}}/api/auth/register
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Александр", "username": "{{user}}", "password": "StudyPass123!"}
+
+### Неверный пароль (401)
+GET {{baseUrl}}/api/auth/me
+Authorization: Basic {{user}} WrongPass1!
+
+### Проверить вход (200)
+GET {{baseUrl}}/api/auth/me
+Authorization: Basic {{user}} StudyPass123!
+
+### Администратор создаёт второго пользователя (201)
+POST {{baseUrl}}/api/users
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Никита", "username": "{{other}}", "password": "StudyPass123!", "role": "USER"}
+
+> {% client.global.set("otherId", response.body.id); %}
+
+### Список пользователей (200)
+GET {{baseUrl}}/api/users
+Authorization: Basic admin Admin12345!
+
+### Свой профиль (200)
+GET {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Изменить своё имя (200)
+PATCH {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Александр Антипов"}
+
+### Нельзя назначить себе ADMIN (403)
+PATCH {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"role": "ADMIN"}
+
+### Заблокировать пользователя (200)
+PATCH {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"enabled": false}
+
+### Заблокированный пользователь не входит (401)
+GET {{baseUrl}}/api/auth/me
+Authorization: Basic {{user}} StudyPass123!
+
+### Разблокировать пользователя (200)
+PATCH {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"enabled": true}
+
+### USER не создаёт вольеры (403)
+POST {{baseUrl}}/api/enclosures
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"allowedSpecies": ["кошка"], "capacity": 2}
+
+### Создать вольер (201)
+POST {{baseUrl}}/api/enclosures
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"allowedSpecies": ["кошка"], "capacity": 2}
+
+> {% client.global.set("enclosureId", response.body.id); %}
+
+### Все вольеры (200)
+GET {{baseUrl}}/api/enclosures
+Authorization: Basic {{user}} StudyPass123!
+
+### Вольер по id (200)
+GET {{baseUrl}}/api/enclosures/{{enclosureId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Изменить вместимость (200)
+PATCH {{baseUrl}}/api/enclosures/{{enclosureId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"capacity": 3}
+
+### Нет CSRF-токена (403)
+POST {{baseUrl}}/api/animals
+Authorization: Basic admin Admin12345!
+Content-Type: application/json
+
+{"name": "Барсик", "species": "кошка", "age": 2, "enclosureId": {{enclosureId}}}
+
+### Неверный CSRF-токен (403)
+POST {{baseUrl}}/api/animals
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: wrong-token
+Content-Type: application/json
+
+{"name": "Барсик", "species": "кошка", "age": 2, "enclosureId": {{enclosureId}}}
+
+### Создать животное (201)
+POST {{baseUrl}}/api/animals
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Барсик", "species": "кошка", "age": 2, "enclosureId": {{enclosureId}}}
+
+> {% client.global.set("animalId", response.body.id); %}
+
+### Неподходящий вид для вольера (400)
+POST {{baseUrl}}/api/animals
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"name": "Шарик", "species": "собака", "age": 3, "enclosureId": {{enclosureId}}}
+
+### Все животные (200)
+GET {{baseUrl}}/api/animals
+Authorization: Basic {{user}} StudyPass123!
+
+### Животное по id (200)
+GET {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Изменить возраст (200)
+PATCH {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"age": 3}
+
+### Подать свою заявку (201)
+POST {{baseUrl}}/api/adoption-applications
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"animalId": {{animalId}}}
+
+> {% client.global.set("applicationId", response.body.id); %}
+
+### Заявка второго пользователя (201)
+POST {{baseUrl}}/api/adoption-applications
+Authorization: Basic {{other}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"animalId": {{animalId}}}
+
+> {% client.global.set("otherApplicationId", response.body.id); %}
+
+### Список только своих заявок (200)
+GET {{baseUrl}}/api/adoption-applications
+Authorization: Basic {{user}} StudyPass123!
+
+### Своя заявка по id (200)
+GET {{baseUrl}}/api/adoption-applications/{{applicationId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Чужая заявка недоступна (403)
+GET {{baseUrl}}/api/adoption-applications/{{applicationId}}
+Authorization: Basic {{other}} StudyPass123!
+
+### Нельзя одобрить свою заявку (403)
+PATCH {{baseUrl}}/api/adoption-applications/{{applicationId}}
+Authorization: Basic {{user}} StudyPass123!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"status": "APPROVED"}
+
+### Акт по ожидающей заявке (409)
+POST {{baseUrl}}/api/animal-handover-records
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"applicationId": {{applicationId}}}
+
+### Администратор одобряет заявку (200)
+PATCH {{baseUrl}}/api/adoption-applications/{{applicationId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"status": "APPROVED"}
+
+### Создать акт (201)
+POST {{baseUrl}}/api/animal-handover-records
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"applicationId": {{applicationId}}}
+
+> {% client.global.set("recordId", response.body.id); %}
+
+### Свои акты (200)
+GET {{baseUrl}}/api/animal-handover-records
+Authorization: Basic {{user}} StudyPass123!
+
+### Свой акт по id (200)
+GET {{baseUrl}}/api/animal-handover-records/{{recordId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Чужой акт недоступен (403)
+GET {{baseUrl}}/api/animal-handover-records/{{recordId}}
+Authorization: Basic {{other}} StudyPass123!
+
+### Отменить акт (200)
+PATCH {{baseUrl}}/api/animal-handover-records/{{recordId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+Content-Type: application/json
+
+{"status": "CANCELLED"}
+
+### Удалить акт (204)
+DELETE {{baseUrl}}/api/animal-handover-records/{{recordId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить заявку (204)
+DELETE {{baseUrl}}/api/adoption-applications/{{applicationId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить вторую заявку (204)
+DELETE {{baseUrl}}/api/adoption-applications/{{otherApplicationId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить вольер (204)
+DELETE {{baseUrl}}/api/enclosures/{{enclosureId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Животное осталось без вольера (200)
+GET {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic {{user}} StudyPass123!
+
+### Удалить животное (204)
+DELETE {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалённое животное не найдено (404)
+GET {{baseUrl}}/api/animals/{{animalId}}
+Authorization: Basic admin Admin12345!
+
+### Удалить второго пользователя (204)
+DELETE {{baseUrl}}/api/users/{{otherId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
+### Удалить первого пользователя (204)
+DELETE {{baseUrl}}/api/users/{{userId}}
+Authorization: Basic admin Admin12345!
+X-CSRF-TOKEN: {{csrf}}
+
